@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kalkulyator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #000; color: white; font-family: -apple-system, sans-serif; }
+        .page { display: none; height: 92vh; width: 100vw; overflow: hidden; }
+        .active { display: flex; flex-direction: column; }
+        .btn { border-radius: 20px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.8rem; transition: 0.1s; cursor: pointer; user-select: none; }
+        .btn:active { transform: scale(0.92); background-color: #555 !important; }
+        .nav-bar { height: 8vh; background: #111; border-top: 1px solid #333; display: flex; }
+        .nav-item { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #888; cursor: pointer; }
+        .nav-item.active-nav { color: #ff9f0a; }
+    </style>
+</head>
+<body>
+
+    <!-- KALKULYATOR -->
+    <div id="calc-page" class="page active p-6">
+        <div class="flex-1 flex flex-col justify-end pb-6">
+            <div id="display" class="text-6xl font-light text-right overflow-hidden whitespace-nowrap">0</div>
+        </div>
+        <div class="grid grid-cols-4 gap-3 h-3/5">
+            <div onclick="press('C')" class="btn bg-zinc-400 text-black">C</div>
+            <div onclick="press('Math.sqrt(')" class="btn bg-zinc-400 text-black">√</div>
+            <div onclick="press('**2')" class="btn bg-zinc-400 text-black">x²</div>
+            <div onclick="press('/')" class="btn bg-orange-500">÷</div>
+            <div onclick="press('7')" class="btn bg-zinc-800">7</div>
+            <div onclick="press('8')" class="btn bg-zinc-800">8</div>
+            <div onclick="press('9')" class="btn bg-zinc-800">9</div>
+            <div onclick="press('*')" class="btn bg-orange-500">×</div>
+            <div onclick="press('4')" class="btn bg-zinc-800">4</div>
+            <div onclick="press('5')" class="btn bg-zinc-800">5</div>
+            <div onclick="press('6')" class="btn bg-zinc-800">6</div>
+            <div onclick="press('-')" class="btn bg-orange-500">−</div>
+            <div onclick="press('1')" class="btn bg-zinc-800">1</div>
+            <div onclick="press('2')" class="btn bg-zinc-800">2</div>
+            <div onclick="press('3')" class="btn bg-zinc-800">3</div>
+            <div onclick="press('+')" class="btn bg-orange-500">+</div>
+            <div onclick="press('0')" class="btn bg-zinc-800 col-span-2">0</div>
+            <div onclick="backspace()" class="btn bg-zinc-800">⌫</div>
+            <div onclick="calculate()" class="btn bg-orange-500">=</div>
+        </div>
+    </div>
+
+    <!-- VALYUTA -->
+    <div id="currency-page" class="page p-8">
+        <h1 class="text-3xl font-bold mb-6 text-center text-orange-500">VALYUTA</h1>
+        <div class="bg-zinc-900 p-6 rounded-3xl mb-6 text-center border border-zinc-800">
+            <p class="text-zinc-500 text-sm mb-1">Global Kurs (USD/UZS):</p>
+            <p id="rate-display" class="text-white text-2xl font-bold italic">Yuklanmoqda...</p>
+        </div>
+        
+        <input id="summa" type="number" placeholder="Summani kiriting" 
+               class="w-full bg-zinc-900 p-5 rounded-2xl text-2xl text-center outline-none border border-zinc-700 focus:border-orange-500 mb-6 text-white">
+        
+        <div class="grid grid-cols-2 gap-4">
+            <button onclick="convert('UZS')" class="bg-green-600 p-5 rounded-2xl font-bold">USD ➔ UZS</button>
+            <button onclick="convert('USD')" class="bg-blue-600 p-5 rounded-2xl font-bold">UZS ➔ USD</button>
+        </div>
+        
+        <div id="curr-result" class="mt-10 text-center text-3xl font-bold text-orange-500"></div>
+    </div>
+
+    <!-- TARIX -->
+    <div id="history-page" class="page p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-orange-500">TARIX 📝</h1>
+            <button onclick="clearHistory()" class="text-red-500">Tozalash</button>
+        </div>
+        <div id="history-list" class="flex flex-col gap-3 overflow-y-auto"></div>
+    </div>
+
+    <nav class="nav-bar">
+        <div onclick="switchPage('calc-page', this)" class="nav-item active-nav">🔢</div>
+        <div onclick="switchPage('currency-page', this)" class="nav-item">💵</div>
+        <div onclick="switchPage('history-page', this)" class="nav-item">📝</div>
+    </nav>
+
+    <script>
+        let currentInput = "";
+        let liveRate = null; 
+
+        // YANGI ISHONCHLI API (ExchangeRate-API)
+        async function fetchLiveRate() {
+            const display = document.getElementById('rate-display');
+            try {
+                const response = await fetch('https://open.er-api.com');
+                if (!response.ok) throw new Error();
+                const data = await response.json();
+                
+                liveRate = data.rates.UZS;
+                display.innerText = `1 USD = ${liveRate.toLocaleString()} UZS`;
+                display.className = "text-green-500 text-2xl font-bold";
+            } catch (e) {
+                display.innerText = "KURS: ERROR ⚠️";
+                display.className = "text-red-500 text-2xl font-bold";
+                liveRate = null;
+            }
+        }
+        fetchLiveRate();
+
+        // KALKULYATOR FUNKSIYALARI
+        function press(key) {
+            if (key === 'C') currentInput = "";
+            else currentInput += key;
+            updateDisplay();
+        }
+        function backspace() {
+            currentInput = currentInput.toString().slice(0, -1);
+            updateDisplay();
+        }
+        function updateDisplay() {
+            let view = currentInput.replace(/\*/g, '×').replace(/\//g, '÷');
+            document.getElementById('display').innerText = view || "0";
+        }
+        function calculate() {
+            try {
+                let expr = currentInput;
+                if(expr.includes('Math.sqrt(') && !expr.endsWith(')')) expr += ')';
+                let result = eval(expr);
+                addHistory(`${currentInput.replace(/\*/g, '×')} = ${result}`);
+                currentInput = result.toString();
+                updateDisplay();
+            } catch (e) {
+                document.getElementById('display').innerText = "Xato!";
+                currentInput = "";
+            }
+        }
+
+        // VALYUTA KONVERTATSIYASI
+        function convert(type) {
+            const resDiv = document.getElementById('curr-result');
+            if (!liveRate) {
+                resDiv.innerText = "ERROR: Kurs yuklanmagan!";
+                resDiv.className = "mt-10 text-center text-xl font-bold text-red-500";
+                return;
+            }
+            let val = parseFloat(document.getElementById('summa').value);
+            if(!val) return;
+            
+            resDiv.className = "mt-10 text-center text-3xl font-bold text-orange-500";
+            let res, text;
+            if(type === 'UZS') {
+                res = (val * liveRate).toLocaleString() + " UZS";
+                text = `${val}$ ➔ ${res}`;
+            } else {
+                res = (val / liveRate).toFixed(2) + " $";
+                text = `${val.toLocaleString()} UZS ➔ ${res}`;
+            }
+            resDiv.innerText = res;
+            addHistory("Valyuta: " + text);
+        }
+
+        function switchPage(pageId, el) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
+            document.getElementById(pageId).classList.add('active');
+            el.classList.add('active-nav');
+            if(pageId === 'history-page') renderHistory();
+            if(pageId === 'currency-page') fetchLiveRate(); 
+        }
+
+        function addHistory(item) {
+            let h = JSON.parse(localStorage.getItem('my_hist') || "[]");
+            h.unshift(item);
+            localStorage.setItem('my_hist', JSON.stringify(h.slice(0, 20)));
+        }
+        function renderHistory() {
+            let h = JSON.parse(localStorage.getItem('my_hist') || "[]");
+            document.getElementById('history-list').innerHTML = h.map(i => 
+                `<div class="bg-zinc-900 p-4 rounded-xl border-l-4 border-orange-500 text-sm font-mono">${i}</div>`
+            ).join('');
+        }
+        function clearHistory() {
+            localStorage.removeItem('my_hist');
+            renderHistory();
+        }
+    </script>
+</body>
+</html>
